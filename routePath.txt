@@ -1,0 +1,4 @@
+INPUT_PATH=../../table
+OUTPUT_TS_PATH=../../assets/Init/Config/ConfigType.ts
+OUTPUT_DATA_PATH=../../assets/Init/Config/ConfigData.ts
+GLOBAL_CONFIG_PATH=../../assets/Init/Config/GlobalConfig.ts
