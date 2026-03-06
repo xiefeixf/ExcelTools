@@ -12,6 +12,34 @@ def ensure_path_exists(file_path):
             pass
 
 
+def clean_number(value):
+    """
+    清理数字类型，将浮点数转换为整数（如果是整数值）
+    例如：1.0 -> 1, 2.0 -> 2, 但 1.5 保持为 1.5
+    """
+    if value is None:
+        return None
+    if isinstance(value, float):
+        if value.is_integer():
+            return int(value)
+        return value
+    return value
+
+
+def deep_clean_numbers(obj):
+    """
+    递归清理对象中的所有数字（包括嵌套的 dict 和 list）
+    """
+    if isinstance(obj, dict):
+        return {k: deep_clean_numbers(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [deep_clean_numbers(item) for item in obj]
+    elif isinstance(obj, (int, float)):
+        return clean_number(obj)
+    else:
+        return obj
+
+
 def excel_to_ts_object(excel_path, output_ts_file):
     excel_data = pd.ExcelFile(excel_path)
     for sheet_name in excel_data.sheet_names:
@@ -19,10 +47,13 @@ def excel_to_ts_object(excel_path, output_ts_file):
         if df.empty or df.shape[0] < 4:
             continue
 
-        # 字段名在第1行，类型在第2行
+        # 字段名在第 1 行，类型在第 2 行
         field_names = df.iloc[0].tolist()
         field_types = df.iloc[1].tolist()
-        data_rows = df.iloc[3:].values.tolist()  # 第5行开始是数据
+        data_rows = df.iloc[3:].values.tolist()  # 第 5 行开始是数据
+        
+        # 获取第一列的字段名作为 Map 的 key
+        key_field = field_names[0] if field_names else 'id'
 
         ts_objects = []
         for row in data_rows:
@@ -69,18 +100,47 @@ def excel_to_ts_object(excel_path, output_ts_file):
                         obj[field] = None
                 else:
                     obj[field] = value if not pd.isna(value) else None
-            # 如果xyz都有，合并为pos
+            # 如果 xyz 都有，合并为 pos
             if all(k in xyz_values for k in ["x", "y", "z"]):
                 obj["pos"] = {
                     "x": xyz_values["x"],
                     "y": xyz_values["y"],
                     "z": xyz_values["z"]
                 }
+            # 清理数字类型（将浮点数转换为整数）
+            obj = deep_clean_numbers(obj)
             ts_objects.append(obj)
 
-        # 生成TS对象字符串
+        # 生成 TS Map 对象字符串
         ts_var_name = os.path.splitext(os.path.basename(excel_path))[0] + "Data"
-        ts_content = f"export const {ts_var_name} = {json.dumps(ts_objects, ensure_ascii=False, indent=2)};\n"
+        
+        # 将数组转换为 Map 格式，使用第一列字段作为 key
+        ts_map_entries = []
+        skipped_count = 0  # 记录跳过的行数
+        for obj in ts_objects:
+            # 检查主键字段是否存在且不为空
+            if key_field not in obj:
+                skipped_count += 1
+                continue
+            
+            key = obj[key_field]
+            
+            # 检查 key 是否为 None 或空值
+            if key is None or key == '' or (isinstance(key, str) and key.strip() == ''):
+                skipped_count += 1
+                continue
+            
+            # 根据 key 的类型决定是否需要引号
+            if isinstance(key, str):
+                ts_map_entries.append(f"  ['{key}', {json.dumps(obj, ensure_ascii=False, indent=2).replace(chr(10), chr(10) + '  ')}]")
+            else:
+                ts_map_entries.append(f"  [{key}, {json.dumps(obj, ensure_ascii=False, indent=2).replace(chr(10), chr(10) + '  ')}]")
+        
+        # 如果有跳过的数据，输出警告信息
+        if skipped_count > 0:
+            print(f"⚠ 警告：文件 '{os.path.basename(excel_path)}' 中有 {skipped_count} 行数据因主键为空被跳过")
+        
+        ts_content = f"export const {ts_var_name} = new Map([\n{',\n'.join(ts_map_entries)}\n]);\n"
 
         ensure_path_exists(output_ts_file)
 

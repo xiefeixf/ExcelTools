@@ -43,22 +43,22 @@ def generate_global_config(type_path, data_path, output_path):
         f.write('} from "./ConfigData";\n\n')
         f.write("export const GlobalConfig: {\n")
         for var in data_vars:
-            f.write(f"  {var.replace('Data','')}: {type_map.get(var, 'any')}[],\n")
+            f.write(f"  {var.replace('Data','')}: Map<string | number, {type_map.get(var, 'any')}>,\n")
         f.write("} = {\n")
         for var in data_vars:
-            f.write(f"  {var.replace('Data','')}: {var} as {type_map.get(var, 'any')}[],\n")
+            f.write(f"  {var.replace('Data','')}: {var} as Map<string | number, {type_map.get(var, 'any')}>,\n")
         f.write("};\n")
         # 新增全局方法
         f.write("""
 /**
- * 根据表名和id获取属性对象
+ * 根据表名和主键获取属性对象（使用第一列字段作为 key）
  * @param table 表名（如 'XXX'）
- * @param id 主键id
+ * @param key 主键值（第一列字段的值）
  */
-export function getConfigById(table: keyof typeof GlobalConfig, id: number | string) {
-  const arr = GlobalConfig[table];
-  if (!Array.isArray(arr)) return undefined;
-  return arr.find(item => item.id === id);
+export function getConfigById(table: keyof typeof GlobalConfig, key: number | string) {
+  const map = GlobalConfig[table];
+  if (!(map instanceof Map)) return undefined;
+  return map.get(key);
 }
 """)
         # 为每个表生成单独的 getXXXById 方法
@@ -67,13 +67,13 @@ export function getConfigById(table: keyof typeof GlobalConfig, id: number | str
             interface = type_map.get(var, 'any')
             f.write(f"""
 /**
- * 获取 {table_name} 表中指定 id 的数据
- * @param id 主键id
+ * 获取 {table_name} 表中指定主键的数据（使用第一列字段作为 key）
+ * @param key 主键值
  */
-export function get{table_name.capitalize()}ById(id: number | string): {interface} | undefined {{
-  const arr = GlobalConfig.{table_name};
-  if (!Array.isArray(arr)) return undefined;
-  return arr.find(item => item.id === id);
+export function get{table_name.capitalize()}ById(key: number | string): {interface} | undefined {{
+  const map = GlobalConfig.{table_name};
+  if (!(map instanceof Map)) return undefined;
+  return map.get(key);
 }}
 """)
 

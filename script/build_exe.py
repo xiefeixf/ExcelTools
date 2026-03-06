@@ -181,12 +181,6 @@ def main():
     # 打包主程序
     build_run_all()
     
-    # 询问是否要打包单独的脚本
-    print("\n" + "="*60)
-    choice = input("是否需要单独打包每个脚本？(y/n): ").strip().lower()
-    if choice == 'y':
-        build_individual_scripts()
-    
     # 复制资源文件
     copy_assets()
     
@@ -200,6 +194,3 @@ def main():
     
     print(f"\n输出目录：{DIST_DIR}")
     print("\n提示：请将 assets 文件夹复制到生成的 exe 文件同级目录下")
-
-if __name__ == "__main__":
-    main()
