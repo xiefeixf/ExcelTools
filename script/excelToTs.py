@@ -83,39 +83,9 @@ def parse_array_type(type_str):
 
 def parse_json_type(type_str):
     """
-    解析如 {"atk":100,"hp":999,"tek":[1,3,8]} 为 { atk: number, hp: number, tek: number[] }
+    解析 JSON 类型 - 直接返回 any，不进行类型推断
     """
-    if not type_str or type_str == 'nan':
-        return "any"
-    # 自动补全key的引号
-    def add_quotes(s):
-        return re.sub(r'([{,]\s*)(\w+)\s*:', r'\1"\2":', s)
-    try:
-        # 尝试标准json解析
-        type_str_fixed = add_quotes(type_str)
-        obj = json.loads(type_str_fixed)
-    except Exception:
-        return "any"
-    fields = []
-    for key, val in obj.items():
-        if isinstance(val, int) or isinstance(val, float):
-            ts_type = "number"
-        elif isinstance(val, str):
-            ts_type = "string"
-        elif isinstance(val, list):
-            # 判断列表元素类型
-            if all(isinstance(x, (int, float)) for x in val):
-                ts_type = "number[]"
-            elif all(isinstance(x, str) for x in val):
-                ts_type = "string[]"
-            else:
-                ts_type = "any[]"
-        elif isinstance(val, dict):
-            ts_type = "object"
-        else:
-            ts_type = "any"
-        fields.append(f"{key}: {ts_type}")
-    return "{ " + ", ".join(fields) + " }"
+    return "any"
 
 def folder_to_ts(folder_path, output_ts_file):
     """
